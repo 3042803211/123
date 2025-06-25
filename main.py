@@ -1,10 +1,4 @@
-"""
-main.py - 自助式数据分析（数据分析智能体）
 
-Author: 骆昊
-Version: 0.1
-Date: 2025/6/25
-"""
 import matplotlib.pyplot as plt
 import openpyxl
 import pandas as pd
@@ -30,7 +24,7 @@ def create_chart(input_data, chart_type):
         st.line_chart(df_data)
 
 
-st.write("## 千锋数据分析智能体")
+st.write("## 李小楠分析智能体")
 option = st.radio("请选择数据文件类型:", ("Excel", "CSV"))
 file_type = "xlsx" if option == "Excel" else "csv"
 data = st.file_uploader(f"上传你的{option}数据文件", type=file_type)
