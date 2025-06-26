@@ -1,0 +1,27 @@
+# 数据分析智能体项目依赖包
+plotly
+
+# 核心数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+
+# 机器学习和AI
+langchain>=0.1.0
+langchain-openai>=0.1.0
+langchain-experimental>=0.0.50
+
+# 可视化库
+streamlit>=1.28.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.17.0
+
+# 数据文件处理
+openpyxl>=3.1.0
+
+# 环境配置
+python-dotenv>=1.0.0
+
+# 其他工具
+requests>=2.31.0
+tabulate>=0.9.0
