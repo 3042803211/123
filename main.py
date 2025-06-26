@@ -850,6 +850,4 @@ st.markdown("""
     <p>📈 数据分析智能体 让数据洞察更简单 | Powered by AI</p>
 </div>
 """, unsafe_allow_html=True)
-st.markdown("### 🤖 AI 聊天")
-if st.button("进入AI聊天页面", use_container_width=True):
-    st.switch_page("chat.py")
+
