@@ -11,10 +11,12 @@ import numpy as np
 from datetime import datetime
 
 from utils import dataframe_agent
+from openai import OpenAI
+from common import get_llm_response
 
 # 页面性能优化配置
 st.set_page_config(
-    page_title="智能数据分析",
+    page_title="智能数据分析 | 小🐖聊天机器人",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -23,7 +25,7 @@ st.set_page_config(
 # 设置页面样式
 st.markdown("""
 <style>
-    /* 整体主题 */
+    /* 合并数据分析和聊天机器人样式 */
     :root {
         --primary-color: #4A90E2;
         --secondary-color: #F5A623;
@@ -31,85 +33,75 @@ st.markdown("""
         --text-color: #2C3E50;
         --border-color: #E9ECEF;
     }
-
-    /* 整体背景和布局 */
     .stApp {
-        background: var(--background-color);
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen-Sans, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
     }
-    
-    /* 侧边栏优化 */
     .css-1d391kg, .css-1p05t8e {
-        background-color: var(--background-color) !important;
-        border-right: 1px solid var(--border-color);
+        background-color: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        border-right: 1px solid rgba(255, 255, 255, 0.3);
     }
-    
-    /* 主要内容区域 */
-    .block-container {
-        padding: 1.5rem 2rem !important;
-        max-width: 1200px;
-        margin: 0 auto;
+    .stChatMessage {
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 15px;
+        margin: 10px 0;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s;
     }
-    
-    /* 卡片容器 */
-    div[data-testid="stExpander"] {
-        background: var(--background-color);
-        border-radius: 4px;
-        padding: 0.75rem;
-        margin: 0.75rem 0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    .stChatMessage:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    
-    div[data-testid="stExpander"]:hover {
-        background: #FFFFFF;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+    .stChatMessage.user {
+        background: linear-gradient(135deg, #007AFF 0%, #5B5BFF 100%);
+        color: white;
     }
-    
-    /* 输入控件美化 */
-    .stSelectbox, .stTextInput>div>div {
-        background: var(--background-color);
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
+    .stChatMessage.assistant {
+        background: linear-gradient(135deg, #E8E8E8 0%, #FFFFFF 100%);
     }
-    
-    .stSelectbox:hover, .stTextInput>div>div:hover {
-        border-color: var(--primary-color);
-        background: #FFFFFF;
+    .stChatInput {
+        border-radius: 20px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        padding: 10px 20px;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
     }
-    
-    /* 文件上传区域 */
-    .stUploader {
-        background: var(--background-color);
-        border-radius: 4px;
-        padding: 1rem;
-        border: 1px dashed var(--border-color);
+    .stButton>button {
+        border-radius: 20px;
+        padding: 10px 25px;
+        background: linear-gradient(135deg, #007AFF 0%, #5B5BFF 100%);
+        color: white;
+        border: none;
+        transition: all 0.3s ease;
     }
-    
-    .stUploader:hover {
-        border-color: var(--primary-color);
-        background: #FFFFFF;
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    
-    /* 标题和文字样式 */
     h1 {
         color: var(--text-color);
         font-size: 2rem;
         font-weight: 500;
         margin-bottom: 1rem;
     }
-    
-    h2, h3 {
+    h2 {
+        color: #2C3E50;
+        font-weight: 600;
+        text-align: center;
+        margin: 20px 0;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    h3 {
         color: var(--text-color);
         font-weight: 400;
         margin: 0.75rem 0;
     }
-    
     p {
         color: var(--text-color);
         line-height: 1.5;
     }
-    
-    /* 图表容器优化 */
     .stPlotlyChart {
         background: var(--background-color);
         border-radius: 4px;
@@ -117,37 +109,17 @@ st.markdown("""
         margin: 0.75rem 0;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
-    
-    /* 按钮样式 */
-    .stButton>button {
-        background: var(--primary-color);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 0.5rem 1rem;
-        font-weight: 400;
-    }
-    
-    .stButton>button:hover {
-        background: #357ABD;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    
-    /* 滚动条美化 */
     ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
     }
-    
     ::-webkit-scrollbar-track {
         background: var(--background-color);
     }
-    
     ::-webkit-scrollbar-thumb {
         background: #CED4DA;
         border-radius: 3px;
     }
-    
     ::-webkit-scrollbar-thumb:hover {
         background: #ADB5BD;
     }
@@ -442,43 +414,71 @@ def create_correlation_heatmap(df: "pd.DataFrame") -> bool:
 
 # 页面配置
 
-# 设置页面背景和样式
+# 合并聊天机器人页面入口
 st.markdown("""
-<style>
-    .stApp {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    }
-    .stApp > header {
-        background-color: transparent;
-    }
-    .stSidebar .sidebar-content {
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(10px);
-    }
-    .stTextInput > div > div > input {
-        background-color: rgba(255, 255, 255, 0.9);
-    }
-    .stSelectbox > div > div > div {
-        background-color: rgba(255, 255, 255, 0.9);
-    }
-    .stFileUploader > div {
-        background-color: rgba(255, 255, 255, 0.9);
-    }
-    .element-container {
-        background-color: rgba(255, 255, 255, 0.7);
-        border-radius: 10px;
-        padding: 10px;\
-        margin: 10px 0;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-</style>
-
 <div style='text-align: center; padding: 30px; background: rgba(255, 255, 255, 0.9); border-radius: 15px; box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border: 1px solid rgba(255, 255, 255, 0.18); margin-bottom: 30px;'>
-    <h1 style='background: linear-gradient(120deg, #1f77b4, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 3.5em; font-weight: 700; margin-bottom: 15px;'>🚀 数据分析智能体</h1>
-    <p style='font-size: 1.3em; color: #555; margin-bottom: 20px; line-height: 1.6;'>智能化数据洞察 • 专业级可视化分析 • 一站式数据解决方案</p>
+    <h1 style='background: linear-gradient(120deg, #1f77b4, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 3.5em; font-weight: 700; margin-bottom: 15px;'>🚀 数据分析智能体 & 小🐖聊天机器人</h1>
+    <p style='font-size: 1.3em; color: #555; margin-bottom: 20px; line-height: 1.6;'>智能化数据洞察 • 专业级可视化分析 • 一站式数据解决方案 • 智能聊天助手</p>
     <div style='width: 60px; height: 4px; background: linear-gradient(90deg, #1f77b4, #2ecc71); margin: 0 auto;'></div>
 </div>
 """, unsafe_allow_html=True)
+
+# 聊天机器人功能
+with st.expander("🤖 小🐖聊天机器人", expanded=False):
+    with st.sidebar:
+        api_vendor = st.radio(label='请选择服务提供商: ', options=['OpenAI', 'DeepSeek'])
+        if api_vendor == 'OpenAI':
+            base_url = 'https://twapi.openai-hk.com/v1/'
+            model_options = ['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4o', 'gpt-4.1-mini', 'gpt-4.1']
+        elif api_vendor == 'DeepSeek':
+            base_url = 'https://api.deepseek.com'
+            model_options = ['deepseek-chat', 'deep-reasoner']
+        else:
+            base_url = ''
+            model_options = []
+        model_name = st.selectbox(label='请选择要使用的模型: ', options=model_options)
+        api_key = st.text_input(label='请输入你的key', type='password')
+
+    if 'messages' not in st.session_state:
+        st.session_state['messages'] = [('ai', '你好，我是你的AI助手，我叫小🐖。')]
+
+    st.write('## 小🐖聊天机器人')
+
+    for role, content in st.session_state['messages']:
+        st.chat_message(role).write(content)
+
+    user_input = st.chat_input(placeholder='请输入')
+    if user_input:
+        st.session_state['messages'].append(('human', user_input))
+        st.chat_message('human').write(user_input)
+        with st.spinner('小🐖正在思考，请耐心等待……'):
+            def get_answer(question: str, api_vendor, base_url, api_key, model_name):
+                try:
+                    client = OpenAI(base_url=base_url, api_key=api_key)
+                    memory = []
+                    for role, content in st.session_state['messages']:
+                        if role == 'human':
+                            memory.append({'role': 'user', 'content': content})
+                        else:
+                            memory.append({'role': 'assistant', 'content': content})
+                    if api_vendor == 'DeepSeek':
+                        return get_llm_response(client, model=model_name, user_prompt=question, memory=memory, stream=True)
+                    else:
+                        return get_llm_response(client, model=model_name, user_prompt=question, memory=memory)
+                except Exception as e:
+                    return f'小🐖暂时无法提供回复，错误信息：{e}'
+            if api_vendor == 'DeepSeek':
+                stream = get_answer(user_input, api_vendor, base_url, api_key, model_name)
+                st.session_state['messages'].append(('ai', ''))
+                msg = st.chat_message('ai')
+                text = ''
+                for chunk in st.write_stream(stream):
+                    text += chunk
+                st.session_state['messages'][-1] = ('ai', text)
+            else:
+                answer = get_answer(user_input, api_vendor, base_url, api_key, model_name)
+                st.session_state['messages'].append(('ai', answer))
+                st.chat_message('ai').write(answer)
 
 # 侧边栏配置
 with st.sidebar:
@@ -852,4 +852,4 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.markdown("### 🤖 AI 聊天")
 if st.button("进入AI聊天页面", use_container_width=True):
-    st.switch_page("pages/chat.py")
+    st.switch_page("chat.py")
